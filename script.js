@@ -1176,7 +1176,7 @@ function sendPath() {
         alert('Not connected to bridge.');
         return;
     }
-    
+
     const msg = {
         type: 'set_waypoints',
         waypoints: waypoints,
@@ -1241,4 +1241,26 @@ window.addEventListener('load', function() {
     document.getElementById('bridgeId').addEventListener('keypress', function(event) {
         if (event.key === 'Enter') connectWebSocket();
     });
+
+    // Speed slider
+    const speedSlider = document.getElementById('maxSpeedSlider');
+    const speedDisplay = document.getElementById('maxSpeedDisplay');
+
+    speedSlider.addEventListener('input', function() {
+        const speed = parseFloat(this.value);
+        speedDisplay.textContent = speed.toFixed(1);
+        sendSpeed(speed);
+    });
+
+    function sendSpeed(speed) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            console.warn('[Speed] Not connected');
+            return;
+        }
+        ws.send(JSON.stringify({
+            type: 'set_speed',
+            speed: speed
+        }));
+        console.log('[Speed] Set to', speed);
+    }
 });
