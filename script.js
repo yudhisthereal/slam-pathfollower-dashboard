@@ -772,20 +772,121 @@ function updateScanRate(currentTime) {
     scanCount++;
 }
 
+// ── Extracted original message handler ──
+function handleRobotMessage(data) {
+    // This is the original ws.onmessage logic, unchanged.
+    if (data.type === 'lidar_scan') {
+        currentRanges = data.ranges || [];
+        currentAngles = data.angles || [];
+        maxRange = data.max_range !== undefined ? data.max_range : maxRange;
+
+        robotX = data.robot_x !== undefined ? data.robot_x : 0;
+        robotY = data.robot_y !== undefined ? data.robot_y : 0;
+        robotTheta = data.robot_theta !== undefined ? data.robot_theta : 0;
+        rawRobotX = data.raw_robot_x !== undefined ? data.raw_robot_x : robotX;
+        rawRobotY = data.raw_robot_y !== undefined ? data.raw_robot_y : robotY;
+        rawRobotTheta = data.raw_robot_theta !== undefined ? data.raw_robot_theta : robotTheta;
+        slamMatchScore = data.slam_match_score !== undefined ? data.slam_match_score : 0;
+
+        const leftSpeed = data.left_speed !== undefined ? data.left_speed : 0;
+        const rightSpeed = data.right_speed !== undefined ? data.right_speed : 0;
+        const linearVel = data.linear_vel !== undefined ? data.linear_vel : 0;
+
+        updateScanRate(data.timestamp || 0);
+
+        document.getElementById('numPoints').innerHTML = (data.num_points || 0).toLocaleString();
+        document.getElementById('rangeLimit').innerHTML =
+            `${(data.min_range || 0).toFixed(1)}–${(data.max_range || 0).toFixed(1)} m`;
+        document.getElementById('lastScan').innerHTML = (data.timestamp || 0).toFixed(2) + ' s';
+        document.getElementById('leftSpeed').innerHTML = leftSpeed.toFixed(2) + ' m/s';
+        document.getElementById('rightSpeed').innerHTML = rightSpeed.toFixed(2) + ' m/s';
+        document.getElementById('posX').innerHTML = robotX.toFixed(2) + ' m';
+        document.getElementById('posY').innerHTML = robotY.toFixed(2) + ' m';
+        document.getElementById('theta').innerHTML = (robotTheta * 180 / Math.PI).toFixed(1) + ' °';
+        document.getElementById('linearVel').innerHTML = linearVel.toFixed(2) + ' m/s';
+
+        // if server sends auto_navigate, sync mode (silent)
+        if (data.auto_navigate !== undefined) {
+            const serverMode = data.auto_navigate ? 'auto' : 'manual';
+            // only sync if different, and avoid overriding user's idle choice
+            if (serverMode !== currentMode) {
+                // If server says auto and we're in idle, switch to auto
+                // If server says manual and we're in idle, stay idle (user chose idle)
+                if (serverMode === 'auto') {
+                    setMode('auto', true);
+                } else if (serverMode === 'manual' && currentMode !== 'idle') {
+                    setMode('manual', true);
+                }
+                // if we're in idle and server says manual, keep idle
+            }
+        }
+
+        if (data.map) currentMap = data.map;
+        if (data.coarse_grid) {
+            currentCoarseGrid = data.coarse_grid;
+        }
+        if (data.path) {
+            currentPath = data.path.map(p => ({ x: p.x, y: p.y }));
+        } else {
+            currentPath = [];
+        }
+        if (data.goal) {
+            currentGoal = { x: data.goal.x, y: data.goal.y };
+        }
+
+        renderActiveView();
+
+        if (scanCount % 100 === 0) {
+            console.log(`[Update] pose=(${robotX.toFixed(2)},${robotY.toFixed(2)})`);
+        }
+    } else if (data.type === 'robot_info') {
+        document.getElementById('leftSpeed').innerHTML = (data.left_speed || 0).toFixed(2) + ' m/s';
+        document.getElementById('rightSpeed').innerHTML = (data.right_speed || 0).toFixed(2) + ' m/s';
+        document.getElementById('posX').innerHTML = (data.x || 0).toFixed(2) + ' m';
+        document.getElementById('posY').innerHTML = (data.y || 0).toFixed(2) + ' m';
+        document.getElementById('theta').innerHTML = ((data.theta || 0) * 180 / Math.PI).toFixed(1) + ' °';
+        document.getElementById('linearVel').innerHTML = (data.linear_vel || 0).toFixed(2) + ' m/s';
+
+        // sync mode from server
+        if (data.auto_navigate !== undefined) {
+            const serverMode = data.auto_navigate ? 'auto' : 'manual';
+            if (serverMode !== currentMode) {
+                if (serverMode === 'auto') {
+                    setMode('auto', true);
+                } else if (serverMode === 'manual' && currentMode !== 'idle') {
+                    setMode('manual', true);
+                }
+            }
+        }
+    } if (data.type === 'registered') {
+        const status = data.bridge_status === 'online' ? 'Bridge Online' : 'Bridge Offline';
+        document.getElementById('connectionStatus').className = 'status connected';
+        document.getElementById('connectionStatus').innerHTML = `Registered (${status})`;
+        return;
+    }
+}
+
 function connectWebSocket() {
-    const url = document.getElementById('wsUrl').value;
-    console.log(`[WebSocket] Connecting to ${url}...`);
+    const relayUrl = document.getElementById('wsUrl').value;
+    const bridgeId = document.getElementById('bridgeId').value;
+
+    console.log(`[WebSocket] Connecting to relay ${relayUrl}...`);
 
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.close();
     }
 
-    ws = new WebSocket(url);
+    ws = new WebSocket(relayUrl);
 
     ws.onopen = function() {
-        console.log(`[WebSocket] ✅ CONNECTED to ${url}`);
-        document.getElementById('connectionStatus').className = 'status connected';
-        document.getElementById('connectionStatus').innerHTML = 'Connected';
+        console.log(`[WebSocket] Connected to relay. Registering as browser...`);
+        ws.send(JSON.stringify({
+            type: 'register',
+            role: 'browser',
+            bridgeId: document.getElementById('bridgeId').value,
+            token: 'kmo-bridge-token1'   // same as BRIDGE_TOKEN in the bridge
+        }));
+        // Reset stats
         scanCount = 0;
         scanRate = 0;
         reconnectAttempts = 0;
@@ -795,91 +896,38 @@ function connectWebSocket() {
         try {
             const data = JSON.parse(event.data);
 
-            if (data.type === 'lidar_scan') {
-                currentRanges = data.ranges || [];
-                currentAngles = data.angles || [];
-                maxRange = data.max_range !== undefined ? data.max_range : maxRange;
-
-                robotX = data.robot_x !== undefined ? data.robot_x : 0;
-                robotY = data.robot_y !== undefined ? data.robot_y : 0;
-                robotTheta = data.robot_theta !== undefined ? data.robot_theta : 0;
-                rawRobotX = data.raw_robot_x !== undefined ? data.raw_robot_x : robotX;
-                rawRobotY = data.raw_robot_y !== undefined ? data.raw_robot_y : robotY;
-                rawRobotTheta = data.raw_robot_theta !== undefined ? data.raw_robot_theta : robotTheta;
-                slamMatchScore = data.slam_match_score !== undefined ? data.slam_match_score : 0;
-
-                const leftSpeed = data.left_speed !== undefined ? data.left_speed : 0;
-                const rightSpeed = data.right_speed !== undefined ? data.right_speed : 0;
-                const autoMode = data.auto_navigate !== undefined ? data.auto_navigate : true;
-                const linearVel = data.linear_vel !== undefined ? data.linear_vel : 0;
-
-                updateScanRate(data.timestamp || 0);
-
-                document.getElementById('numPoints').innerHTML = (data.num_points || 0).toLocaleString();
-                document.getElementById('rangeLimit').innerHTML =
-                    `${(data.min_range || 0).toFixed(1)}–${(data.max_range || 0).toFixed(1)} m`;
-                document.getElementById('lastScan').innerHTML = (data.timestamp || 0).toFixed(2) + ' s';
-                document.getElementById('leftSpeed').innerHTML = leftSpeed.toFixed(2) + ' m/s';
-                document.getElementById('rightSpeed').innerHTML = rightSpeed.toFixed(2) + ' m/s';
-                document.getElementById('posX').innerHTML = robotX.toFixed(2) + ' m';
-                document.getElementById('posY').innerHTML = robotY.toFixed(2) + ' m';
-                document.getElementById('theta').innerHTML = (robotTheta * 180 / Math.PI).toFixed(1) + ' °';
-                document.getElementById('linearVel').innerHTML = linearVel.toFixed(2) + ' m/s';
-
-                // if server sends auto_navigate, sync mode (silent)
-                if (data.auto_navigate !== undefined) {
-                    const serverMode = data.auto_navigate ? 'auto' : 'manual';
-                    // only sync if different, and avoid overriding user's idle choice
-                    if (serverMode !== currentMode) {
-                        // If server says auto and we're in idle, switch to auto
-                        // If server says manual and we're in idle, stay idle (user chose idle)
-                        if (serverMode === 'auto') {
-                            setMode('auto', true);
-                        } else if (serverMode === 'manual' && currentMode !== 'idle') {
-                            setMode('manual', true);
-                        }
-                        // if we're in idle and server says manual, keep idle
-                    }
-                }
-
-                if (data.map) currentMap = data.map;
-                if (data.coarse_grid) {
-                    currentCoarseGrid = data.coarse_grid;
-                }
-                if (data.path) {
-                    currentPath = data.path.map(p => ({ x: p.x, y: p.y }));
-                } else {
-                    currentPath = [];
-                }
-                if (data.goal) {
-                    currentGoal = { x: data.goal.x, y: data.goal.y };
-                }
-
-                renderActiveView();
-
-                if (scanCount % 100 === 0) {
-                    console.log(`[Update] pose=(${robotX.toFixed(2)},${robotY.toFixed(2)})`);
-                }
-            } else if (data.type === 'robot_info') {
-                document.getElementById('leftSpeed').innerHTML = (data.left_speed || 0).toFixed(2) + ' m/s';
-                document.getElementById('rightSpeed').innerHTML = (data.right_speed || 0).toFixed(2) + ' m/s';
-                document.getElementById('posX').innerHTML = (data.x || 0).toFixed(2) + ' m';
-                document.getElementById('posY').innerHTML = (data.y || 0).toFixed(2) + ' m';
-                document.getElementById('theta').innerHTML = ((data.theta || 0) * 180 / Math.PI).toFixed(1) + ' °';
-                document.getElementById('linearVel').innerHTML = (data.linear_vel || 0).toFixed(2) + ' m/s';
-
-                // sync mode from server
-                if (data.auto_navigate !== undefined) {
-                    const serverMode = data.auto_navigate ? 'auto' : 'manual';
-                    if (serverMode !== currentMode) {
-                        if (serverMode === 'auto') {
-                            setMode('auto', true);
-                        } else if (serverMode === 'manual' && currentMode !== 'idle') {
-                            setMode('manual', true);
-                        }
-                    }
-                }
+            // ─── Relay control messages ───
+            if (data.type === 'bridge_ready') {
+                console.log(`[WebSocket] Bridge ${data.bridge_id} ready.`);
+                document.getElementById('connectionStatus').className = 'status connected';
+                document.getElementById('connectionStatus').innerHTML = 'Connected (Relay)';
+                return;
             }
+
+            if (data.type === 'bridge_offline') {
+                console.warn(`[WebSocket] Bridge ${data.bridgeId} offline.`);
+                document.getElementById('connectionStatus').className = 'status disconnected';
+                document.getElementById('connectionStatus').innerHTML = 'Bridge Offline';
+                return;
+            }
+
+            if (data.type === 'bridge_online') {
+                console.log(`[WebSocket] Bridge ${data.bridgeId} online.`);
+                document.getElementById('connectionStatus').className = 'status connected';
+                document.getElementById('connectionStatus').innerHTML = 'Bridge Online';
+                return;
+            }
+
+            if (data.type === 'error') {
+                console.error(`[WebSocket] Relay error: ${data.message}`);
+                document.getElementById('connectionStatus').className = 'status error';
+                document.getElementById('connectionStatus').innerHTML = 'Error';
+                return;
+            }
+
+            // ─── All other messages: robot data ───
+            handleRobotMessage(data);
+
         } catch (error) {
             console.error('[WebSocket] Parse error:', error);
         }
@@ -1054,7 +1102,9 @@ window.addEventListener('load', function() {
     setupKeyboardControls();
     setupMapInteractions();
 
-    document.getElementById('wsUrl').value = 'ws://localhost:8766';
+    // Set default relay URL (user can change)
+    document.getElementById('wsUrl').value = 'wss://kmo-relayserver.yudhisthereal.workers.dev';
+    document.getElementById('bridgeId').value = 'my_robot_01';
 
     // set initial mode (idle)
     setMode('idle', true);
@@ -1082,6 +1132,9 @@ window.addEventListener('load', function() {
     }, 1000);
 
     document.getElementById('wsUrl').addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') connectWebSocket();
+    });
+    document.getElementById('bridgeId').addEventListener('keypress', function(event) {
         if (event.key === 'Enter') connectWebSocket();
     });
 });
