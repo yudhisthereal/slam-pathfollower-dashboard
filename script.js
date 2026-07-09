@@ -317,7 +317,8 @@ function drawMapAxes() {
     const stepy = niceStep(rangeY, 15);
 
     // Debug every 10th render
-    const debug = (scanCount % 10 === 0);
+    // const debug = (scanCount % 10 === 0);
+    const debug = 0;
 
     const originScreen = worldToMapScreen(0, 0);
     const originVisible = (leftWorld <= 0 && rightWorld >= 0 && bottomWorld <= 0 && topWorld >= 0);
