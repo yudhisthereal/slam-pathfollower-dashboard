@@ -506,7 +506,7 @@ function drawMapCells(mapData) {
 
 function drawRobotOnMap() {
     const screen = worldToMapScreen(robotX, robotY);
-    const heading = robotTheta + Math.PI;
+    const heading = robotTheta;
     const forwardX = Math.cos(heading);
     const forwardY = Math.sin(heading);
     const leftX = -Math.sin(heading);
@@ -898,6 +898,11 @@ function handleRobotMessage(data) {
         document.getElementById('connectionStatus').className = 'status connected';
         document.getElementById('connectionStatus').innerHTML = `Registered (${status})`;
         return;
+    } if (data.remaining_waypoints !== undefined) {
+        // Replace the frontend's waypoints with the remaining ones from the bridge
+        waypoints = data.remaining_waypoints.map(wp => ({ x: wp.x, y: wp.y }));
+        updateWaypointUI();
+        if (activeView === 'map') renderMapView();
     }
 }
 
@@ -1171,10 +1176,7 @@ function sendPath() {
         alert('Not connected to bridge.');
         return;
     }
-    if (waypoints.length < 2) {
-        alert('Add at least two waypoints.');
-        return;
-    }
+    
     const msg = {
         type: 'set_waypoints',
         waypoints: waypoints,
