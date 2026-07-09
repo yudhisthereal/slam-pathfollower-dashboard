@@ -6,6 +6,8 @@ let ws = null;
 let activeView = 'radar';
 let currentMode = 'idle'; // 'idle' | 'manual' | 'auto'
 
+let isEditing = false; // editing config fields
+
 let waypoints = [];           // array of {x, y}
 let currentTool = 'pan';      // 'pan', 'add', 'remove'
 let loopMode = false;
@@ -62,6 +64,40 @@ const maxReconnectAttempts = 5;
 
 // ── helpers ──
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+// ─── Config helpers ────────────────────────────────────────────
+
+function updateLinearSpeed() {
+    const radius = parseFloat(document.getElementById('wheelRadius').value) || 0.0975;
+    const speedRad = parseFloat(document.getElementById('maxSpeedSlider').value) || 0;
+    const linear = radius * speedRad;
+    document.getElementById('linearSpeedDisplay').textContent = linear.toFixed(2);
+}
+
+function sendConfig() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.warn('[Config] Not connected');
+        return;
+    }
+    const config = {
+        wheel_radius: parseFloat(document.getElementById('wheelRadius').value),
+        wheel_base: parseFloat(document.getElementById('wheelBase').value),
+        lidar_offset_x: parseFloat(document.getElementById('lidarOffsetX').value),
+        lidar_offset_y: parseFloat(document.getElementById('lidarOffsetY').value),
+        max_speed: parseFloat(document.getElementById('maxSpeedSlider').value),
+        robot_width: parseFloat(document.getElementById('robotWidth').value),
+        stop_distance: parseFloat(document.getElementById('stopDistance').value)
+    };
+    ws.send(JSON.stringify({ type: 'set_config', config }));
+    console.log('[Config] Sent', config);
+}
+
+function requestConfig() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'get_config' }));
+        console.log('[Config] Requested');
+    }
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  INIT
@@ -355,7 +391,7 @@ function drawMapAxes() {
         mapCtx.fillText('X', canvasWidth - 8, originScreen.y - 4);
     }
 
-    // Y ticks (left) – draw at left edge
+    // Y ticks (left) - draw at left edge
     const xPosForYLabels = leftWorld;
     const yStart = Math.ceil(bottomWorld / stepy) * stepy;
     const yEnd = Math.floor(topWorld / stepy) * stepy;
@@ -389,10 +425,10 @@ function drawMapAxes() {
         }
         if (debug) console.log(`[Y] drawn ${drawn} visible ticks`);
     } else {
-        if (debug) console.warn('[Y] ❌ NO TICKS – yStart > yEnd');
+        if (debug) console.warn('[Y] ❌ NO TICKS - yStart > yEnd');
     }
 
-    // X ticks (top) – draw at top edge
+    // X ticks (top) - draw at top edge
     const yPosForXLabelsTop = topWorld;
     const xStart = Math.ceil(leftWorld / stepx) * stepx;
     const xEnd = Math.floor(rightWorld / stepx) * stepx;
@@ -426,7 +462,7 @@ function drawMapAxes() {
         }
         if (debug) console.log(`[X] drawn ${drawn} visible ticks`);
     } else {
-        if (debug) console.warn('[X] ❌ NO TICKS – xStart > xEnd');
+        if (debug) console.warn('[X] ❌ NO TICKS - xStart > xEnd');
     }
 
     // origin label
@@ -760,7 +796,7 @@ function setMode(mode, silent = false) {
 
     // send command to server
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-        console.warn('[Mode] Not connected – mode set locally only');
+        console.warn('[Mode] Not connected - mode set locally only');
         return;
     }
 
@@ -831,7 +867,7 @@ function handleRobotMessage(data) {
 
         document.getElementById('numPoints').innerHTML = (data.num_points || 0).toLocaleString();
         document.getElementById('rangeLimit').innerHTML =
-            `${(data.min_range || 0).toFixed(1)}–${(data.max_range || 0).toFixed(1)} m`;
+            `${(data.min_range || 0).toFixed(1)}-${(data.max_range || 0).toFixed(1)} m`;
         document.getElementById('lastScan').innerHTML = (data.timestamp || 0).toFixed(2) + ' s';
         document.getElementById('leftSpeed').innerHTML = leftSpeed.toFixed(2) + ' m/s';
         document.getElementById('rightSpeed').innerHTML = rightSpeed.toFixed(2) + ' m/s';
@@ -894,9 +930,9 @@ function handleRobotMessage(data) {
             }
         }
     } if (data.type === 'registered') {
-        const status = data.bridge_status === 'online' ? 'Bridge Online' : 'Bridge Offline';
         document.getElementById('connectionStatus').className = 'status connected';
-        document.getElementById('connectionStatus').innerHTML = `Registered (${status})`;
+        document.getElementById('connectionStatus').innerHTML = `Registered (${data.bridge_status || 'online'})`;
+        requestConfig();
         return;
     } if (data.remaining_waypoints !== undefined) {
         // Replace the frontend's waypoints with the remaining ones from the bridge
@@ -962,6 +998,24 @@ function connectWebSocket() {
                 console.error(`[WebSocket] Relay error: ${data.message}`);
                 document.getElementById('connectionStatus').className = 'status error';
                 document.getElementById('connectionStatus').innerHTML = 'Error';
+                return;
+            }
+            if (data.type === 'config' || data.type === 'config_updated') {
+                if (isEditing) {
+                    return;
+                }
+                const c = data.config;
+                if (c.wheel_radius !== undefined) document.getElementById('wheelRadius').value = c.wheel_radius;
+                if (c.wheel_base !== undefined) document.getElementById('wheelBase').value = c.wheel_base;
+                if (c.lidar_offset_x !== undefined) document.getElementById('lidarOffsetX').value = c.lidar_offset_x;
+                if (c.lidar_offset_y !== undefined) document.getElementById('lidarOffsetY').value = c.lidar_offset_y;
+                if (c.max_speed !== undefined) {
+                    document.getElementById('maxSpeedSlider').value = c.max_speed;
+                    document.getElementById('maxSpeedDisplay').textContent = c.max_speed.toFixed(1);
+                }
+                if (c.robot_width !== undefined) document.getElementById('robotWidth').value = c.robot_width;
+                if (c.stop_distance !== undefined) document.getElementById('stopDistance').value = c.stop_distance;
+                updateLinearSpeed();
                 return;
             }
 
@@ -1215,7 +1269,7 @@ window.addEventListener('load', function() {
 
     // defaults
     document.getElementById('numPoints').innerHTML = '0';
-    document.getElementById('rangeLimit').innerHTML = '0–0 m';
+    document.getElementById('rangeLimit').innerHTML = '0-0 m';
     document.getElementById('lastScan').innerHTML = '0 s';
     document.getElementById('scanRate').innerHTML = '0 Hz';
     document.getElementById('leftSpeed').innerHTML = '0.00 m/s';
@@ -1242,25 +1296,48 @@ window.addEventListener('load', function() {
         if (event.key === 'Enter') connectWebSocket();
     });
 
-    // Speed slider
+    // --- Config elements ---
+    const wheelRadiusInput = document.getElementById('wheelRadius');
+    const wheelBaseInput = document.getElementById('wheelBase');
+    const lidarOffsetXInput = document.getElementById('lidarOffsetX');
+    const lidarOffsetYInput = document.getElementById('lidarOffsetY');
+    const robotWidthInput = document.getElementById('robotWidth');
+    const stopDistanceInput = document.getElementById('stopDistance');
     const speedSlider = document.getElementById('maxSpeedSlider');
-    const speedDisplay = document.getElementById('maxSpeedDisplay');
 
-    speedSlider.addEventListener('input', function() {
-        const speed = parseFloat(this.value);
-        speedDisplay.textContent = speed.toFixed(1);
-        sendSpeed(speed);
+    // --- Editing state tracking ---
+    function startEditing() { isEditing = true; }
+    function stopEditing() { isEditing = false; }
+
+    // All number inputs
+    const inputs = [wheelRadiusInput, wheelBaseInput, lidarOffsetXInput, lidarOffsetYInput, robotWidthInput, stopDistanceInput];
+    inputs.forEach(input => {
+        input.addEventListener('focus', startEditing);
+        input.addEventListener('blur', stopEditing);
     });
 
-    function sendSpeed(speed) {
-        if (!ws || ws.readyState !== WebSocket.OPEN) {
-            console.warn('[Speed] Not connected');
-            return;
-        }
-        ws.send(JSON.stringify({
-            type: 'set_speed',
-            speed: speed
-        }));
-        console.log('[Speed] Set to', speed);
-    }
+    // Slider: pointer events (for drag) + focus/blur (for keyboard)
+    speedSlider.addEventListener('pointerdown', startEditing);
+    speedSlider.addEventListener('pointerup', stopEditing);
+    speedSlider.addEventListener('focus', startEditing);
+    speedSlider.addEventListener('blur', stopEditing);
+    // Safety: release outside the slider
+    document.addEventListener('pointerup', stopEditing);
+
+    // --- Value change events ---
+    wheelRadiusInput.addEventListener('input', () => { updateLinearSpeed(); sendConfig(); });
+    wheelBaseInput.addEventListener('input', sendConfig);
+    lidarOffsetXInput.addEventListener('input', sendConfig);
+    lidarOffsetYInput.addEventListener('input', sendConfig);
+    robotWidthInput.addEventListener('input', sendConfig);
+    stopDistanceInput.addEventListener('input', sendConfig);
+
+    speedSlider.addEventListener('input', function() {
+        document.getElementById('maxSpeedDisplay').textContent = parseFloat(this.value).toFixed(1);
+        sendConfig();
+        updateLinearSpeed();
+    });
+
+    // Initial linear speed
+    updateLinearSpeed();
 });

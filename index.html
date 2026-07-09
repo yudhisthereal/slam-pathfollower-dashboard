@@ -92,22 +92,75 @@
                     </table>
                 </div>
 
-                <!-- Speed Control -->
+                <!-- Configuration & Speed Control -->
                 <div class="info-section">
-                    <h3>Speed Limit</h3>
+                    <h3>Robot Configuration</h3>
                     <table class="info-table">
+                        <!-- Robot parameters -->
                         <tr>
-                            <td class="info-label">Max Speed:</td>
-                            <td class="info-value" id="maxSpeedDisplay">4.0</td>
-                            <td class="info-value" style="font-size:12px; color:#888;">rad/s</td>
+                            <td class="info-label" style="width:1%; white-space:nowrap;">Wheel Radius:</td>
+                            <td class="info-value">
+                                <input type="number" id="wheelRadius" value="0.0975" step="0.001" min="0.01" style="width:100px;">
+                            </td>
+                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m</td>
                         </tr>
                         <tr>
-                            <td colspan="3" style="padding: 4px 0;">
-                                <input type="range" id="maxSpeedSlider" min="0.2" max="8.0" step="0.1" value="4.0" style="width:100%;">
+                            <td class="info-label" style="width:1%; white-space:nowrap;">Wheel Base:</td>
+                            <td class="info-value">
+                                <input type="number" id="wheelBase" value="0.33" step="0.001" min="0.1" style="width:100px;">
                             </td>
+                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m</td>
+                        </tr>
+                        <tr>
+                            <td class="info-label" style="width:1%; white-space:nowrap;">Lidar Offset X:</td>
+                            <td class="info-value">
+                                <input type="number" id="lidarOffsetX" value="0.0" step="0.001" style="width:100px;">
+                            </td>
+                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m</td>
+                        </tr>
+                        <tr>
+                            <td class="info-label" style="width:1%; white-space:nowrap;">Lidar Offset Y:</td>
+                            <td class="info-value">
+                                <input type="number" id="lidarOffsetY" value="0.0" step="0.001" style="width:100px;">
+                            </td>
+                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m</td>
+                        </tr>
+                        <tr>
+                            <td class="info-label" style="width:1%; white-space:nowrap;">Linear Speed:</td>
+                            <td class="info-value" id="linearSpeedDisplay">0.00</td>
+                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m/s</td>
+                        </tr>
+
+                        <!-- Speed Limit: label + slider + value in one row -->
+                        <tr>
+                            <td class="info-label" style="width:1%; white-space:nowrap;">Wheel Speed:</td>
+                            <td colspan="2" style="padding: 4px 0;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <input type="range" id="maxSpeedSlider" min="0.2" max="8.0" step="0.1" value="4.0" style="flex:1;">
+                                    <span id="maxSpeedDisplay" style="min-width:30px; text-align:right;" class="info-value">4.0</span>
+                                    <span style="font-size:12px; color:#888; white-space:nowrap;">rad/s</span>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td class="info-label" style="width:1%; white-space:nowrap;">Robot Width:</td>
+                            <td class="info-value">
+                                <input type="number" id="robotWidth" value="0.41" step="0.001" min="0.01" style="width:100px;">
+                            </td>
+                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m</td>
+                        </tr>
+                        <tr>
+                            <td class="info-label" style="width:1%; white-space:nowrap;">Stop Distance:</td>
+                            <td class="info-value">
+                                <input type="number" id="stopDistance" value="0.30" step="0.001" min="0.01" style="width:100px;">
+                            </td>
+                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m</td>
                         </tr>
                     </table>
                 </div>
+
+
 
                 <!-- Mode Selector (the only change) -->
                 <div class="controls">
