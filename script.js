@@ -6,6 +6,11 @@ let ws = null;
 let activeView = 'radar';
 let currentMode = 'idle'; // 'idle' | 'manual' | 'auto'
 
+let waypoints = [];           // array of {x, y}
+let currentTool = 'pan';      // 'pan', 'add', 'remove'
+let loopMode = false;
+let waypointRadius = 0.5;     // meters for removal click
+
 // Canvas refs
 let radarCanvas = null;
 let radarCtx = null;
@@ -668,6 +673,34 @@ function drawPath(path) {
     }
 }
 
+function drawWaypoints() {
+    if (!waypoints || waypoints.length === 0) return;
+    for (let i = 0; i < waypoints.length; i++) {
+        const wp = waypoints[i];
+        const s = worldToMapScreen(wp.x, wp.y);
+        // circle with glow
+        mapCtx.fillStyle = '#ffcc00';
+        mapCtx.shadowColor = 'rgba(255,204,0,0.5)';
+        mapCtx.shadowBlur = 12;
+        mapCtx.beginPath();
+        mapCtx.arc(s.x, s.y, 6, 0, 2 * Math.PI);
+        mapCtx.fill();
+        mapCtx.shadowBlur = 0;
+        // number
+        mapCtx.fillStyle = '#1f2937';
+        mapCtx.font = 'bold 11px Arial';
+        mapCtx.textAlign = 'center';
+        mapCtx.textBaseline = 'middle';
+        mapCtx.fillText((i+1).toString(), s.x, s.y);
+        // label (optional)
+        mapCtx.fillStyle = '#1f2937';
+        mapCtx.font = '10px Arial';
+        mapCtx.textAlign = 'left';
+        mapCtx.textBaseline = 'bottom';
+        mapCtx.fillText(`(${wp.x.toFixed(2)}, ${wp.y.toFixed(2)})`, s.x + 10, s.y - 2);
+    }
+}
+
 function renderMapView() {
     mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
     mapCtx.fillStyle = '#f4f7fb';
@@ -678,6 +711,7 @@ function renderMapView() {
     drawCoarseGrid(currentCoarseGrid);
     drawRobotOnMap();
     drawPath(currentPath);
+    drawWaypoints();
 
     mapCtx.fillStyle = '#1f2937';
     mapCtx.font = '12px Arial';
@@ -1037,13 +1071,44 @@ function setupKeyboardControls() {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 function setupMapInteractions() {
+    // --- Tool buttons ---
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentTool = this.dataset.tool;
+            mapCanvas.style.cursor = currentTool === 'pan' ? 'grab' : 'crosshair';
+        });
+    });
+
+    // --- Loop checkbox ---
+    document.getElementById('loopCheckbox').addEventListener('change', function() {
+        loopMode = this.checked;
+    });
+
+    // --- Map mouse events ---
     mapCanvas.addEventListener('mousedown', function(event) {
         if (activeView !== 'map') return;
-        mapView.dragging = true;
-        mapView.dragStartX = event.clientX;
-        mapView.dragStartY = event.clientY;
-        mapView.dragOriginX = mapView.centerX;
-        mapView.dragOriginY = mapView.centerY;
+        if (currentTool === 'pan') {
+            mapView.dragging = true;
+            mapView.dragStartX = event.clientX;
+            mapView.dragStartY = event.clientY;
+            mapView.dragOriginX = mapView.centerX;
+            mapView.dragOriginY = mapView.centerY;
+        } else {
+            // Add or remove on click
+            const rect = mapCanvas.getBoundingClientRect();
+            const scaleX = mapCanvas.width / rect.width;
+            const scaleY = mapCanvas.height / rect.height;
+            const canvasX = (event.clientX - rect.left) * scaleX;
+            const canvasY = (event.clientY - rect.top) * scaleY;
+            const world = mapScreenToWorld(canvasX, canvasY);
+            if (currentTool === 'add') {
+                addWaypoint(world.x, world.y);
+            } else if (currentTool === 'remove') {
+                removeWaypoint(world.x, world.y);
+            }
+        }
     });
 
     window.addEventListener('mousemove', function(event) {
@@ -1074,22 +1139,53 @@ function setupMapInteractions() {
         mapView.centerY = mouseWorld.y - (mouseY - mapCanvas.height / 2) / mapView.zoom;
         renderMapView();
     }, { passive: false });
+}
 
-    mapCanvas.addEventListener('dblclick', function(event) {
-        if (activeView !== 'map') return;
-        const rect = mapCanvas.getBoundingClientRect();
-        const scaleX = mapCanvas.width / rect.width;
-        const scaleY = mapCanvas.height / rect.height;
-        const canvasX = (event.clientX - rect.left) * scaleX;
-        const canvasY = (event.clientY - rect.top) * scaleY;
-        const world = mapScreenToWorld(canvasX, canvasY);
-        currentGoal = { x: world.x, y: world.y };
-        console.log('[Map] Goal set at', world.x.toFixed(2), world.y.toFixed(2));
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'set_goal', x: world.x, y: world.y }));
-        }
-        if (activeView === 'map') renderMapView();
+function addWaypoint(x, y) {
+    waypoints.push({x, y});
+    updateWaypointUI();
+    if (activeView === 'map') renderMapView();
+    console.log(`[Waypoint] Added (${x.toFixed(2)}, ${y.toFixed(2)})`);
+}
+
+function removeWaypoint(x, y) {
+    // Find the closest waypoint within radius
+    let minDist = waypointRadius + 0.01;
+    let index = -1;
+    waypoints.forEach((wp, i) => {
+        const d = Math.hypot(wp.x - x, wp.y - y);
+        if (d < minDist) { minDist = d; index = i; }
     });
+    if (index >= 0) {
+        const removed = waypoints.splice(index, 1)[0];
+        updateWaypointUI();
+        if (activeView === 'map') renderMapView();
+        console.log(`[Waypoint] Removed (${removed.x.toFixed(2)}, ${removed.y.toFixed(2)})`);
+    } else {
+        console.log('[Waypoint] No waypoint near click');
+    }
+}
+
+function sendPath() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('Not connected to bridge.');
+        return;
+    }
+    if (waypoints.length < 2) {
+        alert('Add at least two waypoints.');
+        return;
+    }
+    const msg = {
+        type: 'set_waypoints',
+        waypoints: waypoints,
+        loop: loopMode
+    };
+    ws.send(JSON.stringify(msg));
+    console.log('[Waypoint] Sent path with', waypoints.length, 'points, loop=', loopMode);
+}
+
+function updateWaypointUI() {
+    document.getElementById('waypointCount').textContent = 'Waypoints: ' + waypoints.length;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1102,6 +1198,11 @@ window.addEventListener('load', function() {
     initZoomSlider();
     setupKeyboardControls();
     setupMapInteractions();
+
+    // Set default tool
+    document.querySelector('.tool-btn[data-tool="pan"]').classList.add('active');
+    currentTool = 'pan';
+    updateWaypointUI();
 
     // Set default relay URL (user can change)
     document.getElementById('wsUrl').value = 'wss://kmo-relayserver.yudhisthereal.workers.dev';

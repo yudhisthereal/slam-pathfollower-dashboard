@@ -31,12 +31,21 @@
                             </div>
                         </div>
                     </section>
-
                     <section id="mapPanel" class="view-panel">
                         <div class="map-toolbar">
                             <button onclick="resetMapView()">Reset View</button>
                             <button onclick="centerMapOnRobot()">Center Robot</button>
                             <button id="toggleGridBtn" onclick="toggleGridMap()">Hide Grid</button>
+                        </div>
+                        <div class="toolbar">
+                            <button id="toolPan" class="tool-btn active" data-tool="pan">○ Pan</button>
+                            <button id="toolAdd" class="tool-btn" data-tool="add">+ Add</button>
+                            <button id="toolRemove" class="tool-btn" data-tool="remove">- Remove</button>
+                        </div>
+                        <div class="waypoint-controls">
+                            <button id="sendPathBtn" onclick="sendPath()">Send Path</button>
+                            <label><input type="checkbox" id="loopCheckbox"> Loop</label>
+                            <span id="waypointCount">Waypoints: 0</span>
                         </div>
                         <div class="map-zoom-container">
                             <span class="zoom-label">Zoom:</span>
@@ -44,7 +53,7 @@
                             <span class="zoom-value" id="mapZoomValue">45</span>
                         </div>
                         <canvas id="mapCanvas" width="720" height="540"></canvas>
-                        <div class="map-hint">Drag to pan • Scroll to zoom • Double-click to set goal</div>
+                        <div class="map-hint">Drag to pan • Scroll to zoom • Click with tool to add/remove waypoints</div>
                     </section>
                 </div>
             </div>
