@@ -37,9 +37,10 @@
                     <!-- Map -->
                     <section id="mapPanel" class="view-panel">
                         <div class="map-toolbar">
-                            <button onclick="resetMapView()">⟲ Reset</button>
+                            <button onclick="resetSLAM()">⟲ Reset</button>
                             <button onclick="centerMapOnRobot()">🎯 Center</button>
                             <button id="toggleGridBtn" onclick="toggleGridMap()">Hide Grid</button>
+                            <button id="clearGoals" onclick="clearGoals()">Clear Goals</button>
                         </div>
                         <div class="toolbar">
                             <button id="toolPan" class="tool-btn active" data-tool="pan">✋ Pan</button>
@@ -79,6 +80,21 @@
                         <button class="dpad-btn" id="dpadDown" data-cmd="backward">▼</button>
                     </div>
                     <div class="dpad-label">Hold to drive • Tap ⏹ to stop</div>
+                </div>
+
+                                <!-- Mode -->
+                <div class="info-section">
+                    <h3>🎮 Control</h3>
+                    <div class="controls">
+                        <div class="mode-selector">
+                            <button class="mode-btn idle-btn active" data-mode="idle" onclick="setMode('idle')">⏸ Idle</button>
+                            <button class="mode-btn manual-btn" data-mode="manual" onclick="setMode('manual')">🎮 Manual</button>
+                            <button class="mode-btn auto-btn" data-mode="auto" onclick="setMode('auto')">🤖 Auto</button>
+                        </div>
+                        <div class="keyboard-hint" id="keyboardHint">
+                            ⌨️ Arrow keys • Space=stop • Q=idle
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -151,8 +167,8 @@
                             <td colspan="2" style="padding:4px 0;">
                                 <div class="slider-row">
                                     <input type="range" id="maxSpeedSlider" min="0.2" max="8.0" step="0.1" value="4.0" />
-                                    <span class="slider-value" id="maxSpeedDisplay">4.0</span>
-                                    <span class="slider-unit">rad/s</span>
+                                    <span class="info-value" id="maxSpeedDisplay">4.0</span>
+                                    <span class="info-value">rad/s</span>
                                 </div>
                             </td>
                         </tr>
@@ -169,23 +185,7 @@
                     </table>
                 </div>
 
-                <!-- Mode -->
-                <div class="info-section">
-                    <h3>🎮 Control</h3>
-                    <div class="controls">
-                        <div class="mode-selector">
-                            <button class="mode-btn idle-btn active" data-mode="idle" onclick="setMode('idle')">⏸ Idle</button>
-                            <button class="mode-btn manual-btn" data-mode="manual" onclick="setMode('manual')">🎮 Manual</button>
-                            <button class="mode-btn auto-btn" data-mode="auto" onclick="setMode('auto')">🤖 Auto</button>
-                        </div>
-                        <div class="keyboard-hint" id="keyboardHint">
-                            ⌨️ Arrow keys • Space=stop • Q=idle
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Connection -->
-                <div class="connection-controls">
+                <div class="connection-controls" style="display: none">
                     <h3>🔌 Connection</h3>
                     <input type="text" id="wsUrl" placeholder="wss://relay.example.com" value="wss://kmo-relayserver.yudhisthereal.workers.dev" />
                     <input type="text" id="bridgeId" placeholder="Bridge ID" value="my_robot_01" />
