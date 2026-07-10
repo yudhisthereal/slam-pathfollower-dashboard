@@ -1158,71 +1158,85 @@ function updateWaypointUI() {
 
 function setupDpad() {
     const buttons = document.querySelectorAll('.dpad-btn');
-    let activeInterval = null;
+    const activeDirections = new Set();   // tracks currently held directions
+    let repeatTimer = null;
 
-    function startCommand(cmd) {
-        if (currentMode !== 'manual') return;
-        sendCommand(cmd);
-        if (activeInterval) clearInterval(activeInterval);
-        activeInterval = setInterval(() => {
-            if (currentMode === 'manual') {
-                sendCommand(cmd);
-            } else {
-                clearInterval(activeInterval);
-                activeInterval = null;
+    // start or update the repeating sender for all held directions
+    function updateRepeater() {
+        if (repeatTimer) {
+            clearInterval(repeatTimer);
+            repeatTimer = null;
+        }
+        if (activeDirections.size === 0 || currentMode !== 'manual') return;
+        repeatTimer = setInterval(() => {
+            if (currentMode !== 'manual') {
+                clearInterval(repeatTimer);
+                repeatTimer = null;
+                return;
             }
+            // re‑send every held command (Arduino will set its flags accordingly)
+            activeDirections.forEach(cmd => sendCommand(cmd));
         }, 150);
     }
 
-    function stopCommand() {
-        if (activeInterval) {
-            clearInterval(activeInterval);
-            activeInterval = null;
-        }
-        if (currentMode === 'manual') {
+    // release a single direction
+    function releaseDirection(cmd) {
+        if (!activeDirections.has(cmd)) return;
+        activeDirections.delete(cmd);
+        if (activeDirections.size === 0) {
             sendCommand('stop');
+        } else {
+            const releaseMap = {
+                forward: 'release_forward',
+                backward: 'release_backward',
+                left: 'release_left',
+                right: 'release_right'
+            };
+            const releaseCmd = releaseMap[cmd];
+            if (releaseCmd) sendCommand(releaseCmd);
         }
+        updateRepeater();
     }
 
+    // attach listeners to each button
     buttons.forEach(btn => {
         const cmd = btn.dataset.cmd;
-        btn.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            if (cmd === 'stop') {
-                sendCommand('stop');
-                return;
-            }
-            startCommand(cmd);
-        });
-        btn.addEventListener('mouseup', stopCommand);
-        btn.addEventListener('mouseleave', stopCommand);
 
-        btn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (cmd === 'stop') {
+        // stop button resets everything
+        if (cmd === 'stop') {
+            const stop = () => {
+                activeDirections.clear();
                 sendCommand('stop');
-                return;
-            }
-            startCommand(cmd);
-            btn.classList.add('active');
-        }, { passive: false });
-        btn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            stopCommand();
-            btn.classList.remove('active');
-        }, { passive: false });
-        btn.addEventListener('touchcancel', (e) => {
-            stopCommand();
-            btn.classList.remove('active');
-        }, { passive: true });
-    });
-
-    document.addEventListener('touchcancel', () => {
-        if (activeInterval) {
-            clearInterval(activeInterval);
-            activeInterval = null;
+                updateRepeater();
+            };
+            btn.addEventListener('mousedown', e => { e.preventDefault(); stop(); });
+            btn.addEventListener('touchstart', e => { e.preventDefault(); stop(); });
+            return;
         }
-        document.querySelectorAll('.dpad-btn').forEach(b => b.classList.remove('active'));
+
+        // press -> add direction
+        const press = (e) => {
+            e.preventDefault();
+            if (currentMode !== 'manual') return;
+            activeDirections.add(cmd);
+            sendCommand(cmd);
+            updateRepeater();
+            btn.classList.add('active');
+        };
+
+        // release -> remove direction
+        const release = (e) => {
+            e.preventDefault();
+            releaseDirection(cmd);
+            btn.classList.remove('active');
+        };
+
+        btn.addEventListener('mousedown', press);
+        btn.addEventListener('mouseup', release);
+        btn.addEventListener('mouseleave', release);   // also release if you drag away
+        btn.addEventListener('touchstart', press, { passive: false });
+        btn.addEventListener('touchend', release, { passive: false });
+        btn.addEventListener('touchcancel', release, { passive: false });
     });
 }
 
