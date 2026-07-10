@@ -2,50 +2,54 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pioneer AT3 LiDAR Visualization</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Pioneer AT3 - LiDAR Visualization</title>
+    <link rel="stylesheet" href="style.css"></link>
 </head>
 <body>
     <div class="container">
+        <!-- ─── HEADER ─── -->
         <div class="header">
-            <h1>Pioneer AT3 - LiDAR Visualization</h1>
+            <h1>🚀 Pioneer AT3</h1>
             <div id="connectionStatus" class="status disconnected">Disconnected</div>
         </div>
 
+        <!-- ─── CONTENT ─── -->
         <div class="content">
+            <!-- MAIN PANEL -->
             <div class="main-panel">
                 <div class="view-tabs">
-                    <button id="radarTab" class="tab-button" onclick="showView('radar')">Radar</button>
-                    <button id="mapTab" class="tab-button active" onclick="showView('map')">Map</button>
+                    <button id="radarTab" class="tab-button" onclick="showView('radar')">📡 Radar</button>
+                    <button id="mapTab" class="tab-button active" onclick="showView('map')">🗺️ Map</button>
                 </div>
 
                 <div class="view-frame">
+                    <!-- Radar -->
                     <section id="radarPanel" class="view-panel active">
                         <canvas id="radarCanvas" width="720" height="540"></canvas>
-                        <div id="radarVisualization" class="visualization-panel">
-                            <div class="visualization-content">
-                                <span class="zoom-label">Zoom:</span>
-                                <input type="range" id="zoomSlider" min="20" max="200" value="96" step="1" />
-                                <span class="zoom-range" id="zoomRange">2.5 m</span>
-                            </div>
+                        <div class="visualization-panel">
+                            <span class="zoom-label">Zoom:</span>
+                            <input type="range" id="zoomSlider" min="20" max="200" value="96" step="1" />
+                            <span class="zoom-range" id="zoomRange">2.5 m</span>
                         </div>
                     </section>
+
+                    <!-- Map -->
                     <section id="mapPanel" class="view-panel">
                         <div class="map-toolbar">
-                            <button onclick="resetMapView()">Reset View</button>
-                            <button onclick="centerMapOnRobot()">Center Robot</button>
+                            <button onclick="resetMapView()">⟲ Reset</button>
+                            <button onclick="centerMapOnRobot()">🎯 Center</button>
                             <button id="toggleGridBtn" onclick="toggleGridMap()">Hide Grid</button>
                         </div>
                         <div class="toolbar">
-                            <button id="toolPan" class="tool-btn active" data-tool="pan">○ Pan</button>
-                            <button id="toolAdd" class="tool-btn" data-tool="add">+ Add</button>
-                            <button id="toolRemove" class="tool-btn" data-tool="remove">- Remove</button>
+                            <button id="toolPan" class="tool-btn active" data-tool="pan">✋ Pan</button>
+                            <button id="toolAdd" class="tool-btn" data-tool="add">➕ Add</button>
+                            <button id="toolRemove" class="tool-btn" data-tool="remove">➖ Remove</button>
                         </div>
                         <div class="waypoint-controls">
-                            <button id="sendPathBtn" onclick="sendPath()">Send Path</button>
-                            <label><input type="checkbox" id="loopCheckbox"> Loop</label>
-                            <span id="waypointCount">Waypoints: 0</span>
+                            <button id="sendPathBtn" onclick="sendPath()">🚀 Send Path</button>
+                            <label><input type="checkbox" id="loopCheckbox" /> 🔁 Loop</label>
+                            <span id="waypointCount">📍 0</span>
                         </div>
                         <div class="map-zoom-container">
                             <span class="zoom-label">Zoom:</span>
@@ -53,18 +57,39 @@
                             <span class="zoom-value" id="mapZoomValue">45</span>
                         </div>
                         <canvas id="mapCanvas" width="720" height="540"></canvas>
-                        <div class="map-hint">Drag to pan • Scroll to zoom • Click with tool to add/remove waypoints</div>
+                        <div class="map-hint">
+                            <span class="desktop-only">🖱 Drag to pan • Scroll to zoom • Click with tool</span>
+                            <span class="mobile-only">👆 Drag to pan • Pinch to zoom • Tap with tool</span>
+                            <span class="touch-hint"> (touch-friendly)</span>
+                        </div>
                     </section>
+                </div>
+
+                <!-- ─── MOBILE D-PAD (shows in manual mode on touch devices) ─── -->
+                <div id="mobileDpad" class="mobile-dpad">
+                    <div class="dpad-row">
+                        <button class="dpad-btn" id="dpadUp" data-cmd="forward">▲</button>
+                    </div>
+                    <div class="dpad-row">
+                        <button class="dpad-btn" id="dpadLeft" data-cmd="left">◀</button>
+                        <button class="dpad-btn stop-btn" id="dpadStop" data-cmd="stop">⏹</button>
+                        <button class="dpad-btn" id="dpadRight" data-cmd="right">▶</button>
+                    </div>
+                    <div class="dpad-row">
+                        <button class="dpad-btn" id="dpadDown" data-cmd="backward">▼</button>
+                    </div>
+                    <div class="dpad-label">Hold to drive • Tap ⏹ to stop</div>
                 </div>
             </div>
 
+            <!-- ─── INFO PANEL ─── -->
             <div class="info-panel">
                 <!-- LiDAR stats -->
                 <div class="info-section">
-                    <h3>LiDAR Statistics</h3>
+                    <h3>📡 LiDAR</h3>
                     <table class="info-table">
                         <tr><td class="info-label">Points:</td><td class="info-value" id="numPoints">0</td></tr>
-                        <tr><td class="info-label">Range:</td><td class="info-value" id="rangeLimit">0-0 m</td></tr>
+                        <tr><td class="info-label">Range:</td><td class="info-value" id="rangeLimit">0–0 m</td></tr>
                         <tr><td class="info-label">Last Scan:</td><td class="info-value" id="lastScan">0 s</td></tr>
                         <tr><td class="info-label">Scan Rate:</td><td class="info-value" id="scanRate">0 Hz</td></tr>
                     </table>
@@ -72,10 +97,10 @@
 
                 <!-- Robot status -->
                 <div class="info-section">
-                    <h3>Robot Status</h3>
+                    <h3>🤖 Status</h3>
                     <table class="info-table">
-                        <tr><td class="info-label">Left Speed:</td><td class="info-value" id="leftSpeed">0.00</td></tr>
-                        <tr><td class="info-label">Right Speed:</td><td class="info-value" id="rightSpeed">0.00</td></tr>
+                        <tr><td class="info-label">Left:</td><td class="info-value" id="leftSpeed">0.00 m/s</td></tr>
+                        <tr><td class="info-label">Right:</td><td class="info-value" id="rightSpeed">0.00 m/s</td></tr>
                         <tr><td class="info-label">Mode:</td><td class="info-value" id="robotMode">Idle</td></tr>
                         <tr><td class="info-label">Battery:</td><td class="info-value" id="battery">100%</td></tr>
                     </table>
@@ -83,7 +108,7 @@
 
                 <!-- Position -->
                 <div class="info-section">
-                    <h3>Robot Position</h3>
+                    <h3>📍 Position</h3>
                     <table class="info-table">
                         <tr><td class="info-label">X:</td><td class="info-value" id="posX">0.00 m</td></tr>
                         <tr><td class="info-label">Y:</td><td class="info-value" id="posY">0.00 m</td></tr>
@@ -92,107 +117,87 @@
                     </table>
                 </div>
 
-                <!-- Configuration & Speed Control -->
+                <!-- Config -->
                 <div class="info-section">
-                    <h3>Robot Configuration</h3>
+                    <h3>⚙️ Config</h3>
                     <table class="info-table">
-                        <!-- Robot parameters -->
                         <tr>
-                            <td class="info-label" style="width:1%; white-space:nowrap;">Wheel Radius:</td>
-                            <td class="info-value">
-                                <input type="number" id="wheelRadius" value="0.0975" step="0.001" min="0.01" style="width:100px;">
-                            </td>
-                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m</td>
+                            <td class="info-label">Wheel Radius:</td>
+                            <td class="info-value"><input type="number" id="wheelRadius" value="0.0975" step="0.001" min="0.01" /></td>
+                            <td class="info-value" style="font-size:0.7rem;color:#555a75;padding-left:4px;">m</td>
                         </tr>
                         <tr>
-                            <td class="info-label" style="width:1%; white-space:nowrap;">Wheel Base:</td>
-                            <td class="info-value">
-                                <input type="number" id="wheelBase" value="0.33" step="0.001" min="0.1" style="width:100px;">
-                            </td>
-                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m</td>
+                            <td class="info-label">Wheel Base:</td>
+                            <td class="info-value"><input type="number" id="wheelBase" value="0.33" step="0.001" min="0.1" /></td>
+                            <td class="info-value" style="font-size:0.7rem;color:#555a75;padding-left:4px;">m</td>
                         </tr>
                         <tr>
-                            <td class="info-label" style="width:1%; white-space:nowrap;">Lidar Offset X:</td>
-                            <td class="info-value">
-                                <input type="number" id="lidarOffsetX" value="0.0" step="0.001" style="width:100px;">
-                            </td>
-                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m</td>
+                            <td class="info-label">Lidar X:</td>
+                            <td class="info-value"><input type="number" id="lidarOffsetX" value="0.0" step="0.001" /></td>
+                            <td class="info-value" style="font-size:0.7rem;color:#555a75;padding-left:4px;">m</td>
                         </tr>
                         <tr>
-                            <td class="info-label" style="width:1%; white-space:nowrap;">Lidar Offset Y:</td>
-                            <td class="info-value">
-                                <input type="number" id="lidarOffsetY" value="0.0" step="0.001" style="width:100px;">
-                            </td>
-                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m</td>
+                            <td class="info-label">Lidar Y:</td>
+                            <td class="info-value"><input type="number" id="lidarOffsetY" value="0.0" step="0.001" /></td>
+                            <td class="info-value" style="font-size:0.7rem;color:#555a75;padding-left:4px;">m</td>
                         </tr>
                         <tr>
-                            <td class="info-label" style="width:1%; white-space:nowrap;">Linear Speed:</td>
+                            <td class="info-label">Linear Speed:</td>
                             <td class="info-value" id="linearSpeedDisplay">0.00</td>
-                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m/s</td>
+                            <td class="info-value" style="font-size:0.7rem;color:#555a75;padding-left:4px;">m/s</td>
                         </tr>
-
-                        <!-- Speed Limit: label + slider + value in one row -->
                         <tr>
-                            <td class="info-label" style="width:1%; white-space:nowrap;">Wheel Speed:</td>
-                            <td colspan="2" style="padding: 4px 0;">
-                                <div style="display:flex; align-items:center; gap:8px;">
-                                    <input type="range" id="maxSpeedSlider" min="0.2" max="8.0" step="0.1" value="4.0" style="flex:1;">
-                                    <span id="maxSpeedDisplay" style="min-width:30px; text-align:right;" class="info-value">4.0</span>
-                                    <span style="font-size:12px; color:#888; white-space:nowrap;">rad/s</span>
+                            <td class="info-label">Wheel Speed:</td>
+                            <td colspan="2" style="padding:4px 0;">
+                                <div class="slider-row">
+                                    <input type="range" id="maxSpeedSlider" min="0.2" max="8.0" step="0.1" value="4.0" />
+                                    <span class="slider-value" id="maxSpeedDisplay">4.0</span>
+                                    <span class="slider-unit">rad/s</span>
                                 </div>
                             </td>
                         </tr>
-
                         <tr>
-                            <td class="info-label" style="width:1%; white-space:nowrap;">Robot Width:</td>
-                            <td class="info-value">
-                                <input type="number" id="robotWidth" value="0.41" step="0.001" min="0.01" style="width:100px;">
-                            </td>
-                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m</td>
+                            <td class="info-label">Robot Width:</td>
+                            <td class="info-value"><input type="number" id="robotWidth" value="0.41" step="0.001" min="0.01" /></td>
+                            <td class="info-value" style="font-size:0.7rem;color:#555a75;padding-left:4px;">m</td>
                         </tr>
                         <tr>
-                            <td class="info-label" style="width:1%; white-space:nowrap;">Stop Distance:</td>
-                            <td class="info-value">
-                                <input type="number" id="stopDistance" value="0.30" step="0.001" min="0.01" style="width:100px;">
-                            </td>
-                            <td class="info-value" style="width:1%; white-space:nowrap; font-size:12px; color:#888; text-align:right; padding-left:8px;">m</td>
+                            <td class="info-label">Stop Dist:</td>
+                            <td class="info-value"><input type="number" id="stopDistance" value="0.30" step="0.001" min="0.01" /></td>
+                            <td class="info-value" style="font-size:0.7rem;color:#555a75;padding-left:4px;">m</td>
                         </tr>
                     </table>
                 </div>
 
-
-
-                <!-- Mode Selector (the only change) -->
-                <div class="controls">
-                    <div class="mode-selector">
-                        <button class="mode-btn idle-btn active" data-mode="idle" onclick="setMode('idle')">
-                            Idle
-                        </button>
-                        <button class="mode-btn manual-btn" data-mode="manual" onclick="setMode('manual')">
-                            Manual
-                        </button>
-                        <button class="mode-btn auto-btn" data-mode="auto" onclick="setMode('auto')">
-                            Auto
-                        </button>
-                    </div>
-                    <div class="keyboard-hint" id="keyboardHint">
-                        Keyboard active: Arrow keys • Space=stop • Q=idle
+                <!-- Mode -->
+                <div class="info-section">
+                    <h3>🎮 Control</h3>
+                    <div class="controls">
+                        <div class="mode-selector">
+                            <button class="mode-btn idle-btn active" data-mode="idle" onclick="setMode('idle')">⏸ Idle</button>
+                            <button class="mode-btn manual-btn" data-mode="manual" onclick="setMode('manual')">🎮 Manual</button>
+                            <button class="mode-btn auto-btn" data-mode="auto" onclick="setMode('auto')">🤖 Auto</button>
+                        </div>
+                        <div class="keyboard-hint" id="keyboardHint">
+                            ⌨️ Arrow keys • Space=stop • Q=idle
+                        </div>
                     </div>
                 </div>
 
                 <!-- Connection -->
                 <div class="connection-controls">
                     <h3>🔌 Connection</h3>
-                    <input type="text" id="wsUrl" placeholder="wss://kmo-relayserver.yudhisthereal.workers.dev" value="wss://localhost:8080" />
+                    <input type="text" id="wsUrl" placeholder="wss://relay.example.com" value="wss://kmo-relayserver.yudhisthereal.workers.dev" />
                     <input type="text" id="bridgeId" placeholder="Bridge ID" value="my_robot_01" />
                     <div class="conn-buttons">
-                        <button onclick="connectWebSocket()">Connect</button>
-                        <button onclick="disconnectWebSocket()">Disconnect</button>
+                        <button onclick="connectWebSocket()">🔗 Connect</button>
+                        <button onclick="disconnectWebSocket()">⛔ Disconnect</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>

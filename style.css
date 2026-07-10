@@ -559,6 +559,76 @@ button:active {
     transform: translateY(0);
 }
 
+/* ── MOBILE D‑PAD (touch controls) ── */
+.mobile-dpad {
+    display: none;                /* hidden by default, shown via JS */
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 0 4px;
+    background: #0d0f1a;
+    border-top: 1px solid #1f2235;
+    border-radius: 0 0 10px 10px;
+    margin-top: 8px;
+}
+
+.mobile-dpad.visible {
+    display: flex;
+}
+
+.dpad-row {
+    display: flex;
+    gap: 4px;
+}
+
+.dpad-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    border: 2px solid #2a2d45;
+    background: #15182a;
+    color: #88ddff;
+    font-size: 1.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: 0.1s;
+    font-weight: 300;
+    min-width: 56px;
+    min-height: 56px;
+}
+
+.dpad-btn:active,
+.dpad-btn.active {
+    background: #2a3d6a;
+    border-color: #88ddff;
+    transform: scale(0.92);
+}
+
+.dpad-btn.stop-btn {
+    border-color: #4a1a2a;
+    color: #ff7d7d;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.dpad-btn.stop-btn:active,
+.dpad-btn.stop-btn.active {
+    background: #4a1a2a;
+    border-color: #ff4444;
+}
+
+.dpad-label {
+    font-size: 0.6rem;
+    color: #555a75;
+    text-align: center;
+    padding: 2px 0 4px;
+}
+
 /* ── responsive ── */
 @media (max-width: 1024px) {
     .main-panel {
@@ -665,6 +735,15 @@ button:active {
     .conn-buttons {
         flex-direction: column;
     }
+
+    /* ── D-pad size adjustment for small screens ── */
+    .dpad-btn {
+        width: 56px;
+        height: 56px;
+        font-size: 1.5rem;
+        min-width: 48px;
+        min-height: 48px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -699,6 +778,14 @@ button:active {
     .connection-controls input {
         font-size: 12px;
         padding: 8px;
+    }
+    .dpad-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 1.2rem;
+        min-width: 40px;
+        min-height: 40px;
+        border-radius: 10px;
     }
 }
 
@@ -824,5 +911,33 @@ button:active {
         background: rgba(255, 255, 255, 0.04);
         border-color: rgba(255, 255, 255, 0.06);
         color: #888;
+    }
+
+    /* D-pad dark mode */
+    .mobile-dpad {
+        background: #0d0f1a;
+        border-top-color: #1f2235;
+    }
+    .dpad-btn {
+        background: #15182a;
+        border-color: #2a2d45;
+        color: #88ddff;
+    }
+    .dpad-btn:active,
+    .dpad-btn.active {
+        background: #2a3d6a;
+        border-color: #88ddff;
+    }
+    .dpad-btn.stop-btn {
+        border-color: #4a1a2a;
+        color: #ff7d7d;
+    }
+    .dpad-btn.stop-btn:active,
+    .dpad-btn.stop-btn.active {
+        background: #4a1a2a;
+        border-color: #ff4444;
+    }
+    .dpad-label {
+        color: #555a75;
     }
 }
