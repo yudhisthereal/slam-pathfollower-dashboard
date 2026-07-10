@@ -65,7 +65,7 @@ function updateLinearSpeed() {
     const radius = parseFloat(document.getElementById('wheelRadius').value) || 0.0975;
     const speedRad = parseFloat(document.getElementById('maxSpeedSlider').value) || 0;
     const linear = radius * speedRad;
-    document.getElementById('linearSpeedDisplay').textContent = linear.toFixed(2);
+    document.getElementById('linearSpeedDisplay').textContent = linear.toFixed(2) + " m/s";
 }
 
 function sendConfig() {
@@ -467,43 +467,79 @@ function drawCoarseGrid(coarseGridData) {
 function drawRobotOnMap() {
     const screen = worldToMapScreen(robotX, robotY);
     const heading = robotTheta;
-    const forwardX = Math.cos(heading);
-    const forwardY = Math.sin(heading);
-    const leftX = -Math.sin(heading);
-    const leftY = Math.cos(heading);
-    const robotSize = 0.18;
-    const nose = {
-        x: screen.x + forwardX * robotSize * mapView.zoom,
-        y: screen.y - forwardY * robotSize * mapView.zoom,
-    };
-    const leftPoint = {
-        x: screen.x - forwardX * robotSize * 0.6 * mapView.zoom + leftX * robotSize * 0.7 * mapView.zoom,
-        y: screen.y + forwardY * robotSize * 0.6 * mapView.zoom - leftY * robotSize * 0.7 * mapView.zoom,
-    };
-    const rightPoint = {
-        x: screen.x - forwardX * robotSize * 0.6 * mapView.zoom - leftX * robotSize * 0.7 * mapView.zoom,
-        y: screen.y + forwardY * robotSize * 0.6 * mapView.zoom + leftY * robotSize * 0.7 * mapView.zoom,
-    };
+    const cosH = Math.cos(heading);
+    const sinH = Math.sin(heading);
+    // direction in screen coordinates (canvas y is inverted)
+    const dx = cosH;
+    const dy = -sinH;
 
-    mapCtx.fillStyle = '#00ff88';
-    mapCtx.beginPath();
-    mapCtx.arc(screen.x, screen.y, 6, 0, 2 * Math.PI);
-    mapCtx.fill();
+    // --- fixed pixel sizes (independent of zoom) ---
+    const bodyLength = 14;        // length of the triangle
+    const bodyWidth = 6;          // thinner triangle (was 10)
+    const circleR = 5;            // radius of the centre circle
+    const headingLineLen = 40;    // how far the heading line extends
 
-    mapCtx.strokeStyle = '#00ff88';
+    // triangle tip (forward)
+    const tipX = screen.x + dx * bodyLength;
+    const tipY = screen.y + dy * bodyLength;
+
+    // base corners (perpendicular to heading)
+    const perpX = -dy;
+    const perpY = dx;
+    const baseLeftX = screen.x - dx * (bodyLength * 0.3) + perpX * (bodyWidth * 0.5);
+    const baseLeftY = screen.y - dy * (bodyLength * 0.3) + perpY * (bodyWidth * 0.5);
+    const baseRightX = screen.x - dx * (bodyLength * 0.3) - perpX * (bodyWidth * 0.5);
+    const baseRightY = screen.y - dy * (bodyLength * 0.3) - perpY * (bodyWidth * 0.5);
+
+    // --- 1. Heading marker (long dashed line) ---
+    mapCtx.save();
+    mapCtx.strokeStyle = 'rgba(200, 180, 0, 0.8)';   // darker yellow
     mapCtx.lineWidth = 2;
+    mapCtx.setLineDash([6, 6]);
+    const endX = screen.x + dx * headingLineLen;
+    const endY = screen.y + dy * headingLineLen;
     mapCtx.beginPath();
     mapCtx.moveTo(screen.x, screen.y);
-    mapCtx.lineTo(nose.x, nose.y);
+    mapCtx.lineTo(endX, endY);
     mapCtx.stroke();
+    mapCtx.restore();
 
-    mapCtx.fillStyle = '#00ff88';
+    // --- 2. Robot body (triangle) - dark blue ---
+    mapCtx.fillStyle = '#0a0a2e';          // very dark blue (almost black)
+    mapCtx.strokeStyle = '#1a1a4a';        // slightly lighter dark blue
+    mapCtx.lineWidth = 1.5;
     mapCtx.beginPath();
-    mapCtx.moveTo(nose.x, nose.y);
-    mapCtx.lineTo(leftPoint.x, leftPoint.y);
-    mapCtx.lineTo(rightPoint.x, rightPoint.y);
+    mapCtx.moveTo(tipX, tipY);
+    mapCtx.lineTo(baseLeftX, baseLeftY);
+    mapCtx.lineTo(baseRightX, baseRightY);
     mapCtx.closePath();
     mapCtx.fill();
+    mapCtx.stroke();
+
+    // --- 3. Centre circle (dark blue) ---
+    mapCtx.fillStyle = '#0a0a2e';
+    mapCtx.strokeStyle = '#1a1a4a';
+    mapCtx.lineWidth = 1.5;
+    mapCtx.beginPath();
+    mapCtx.arc(screen.x, screen.y, circleR, 0, 2 * Math.PI);
+    mapCtx.fill();
+    mapCtx.stroke();
+
+    // --- 4. Bright blue dot at the tip (forward indicator) ---
+    mapCtx.fillStyle = '#0066ff';          // bright blue
+    mapCtx.beginPath();
+    mapCtx.arc(tipX, tipY, 3.5, 0, 2 * Math.PI);
+    mapCtx.fill();
+
+    // --- 5. Heading angle text ---
+    mapCtx.fillStyle = 'white';
+    mapCtx.font = 'bold 11px Arial';
+    mapCtx.textAlign = 'left';
+    mapCtx.textBaseline = 'bottom';
+    mapCtx.shadowColor = 'rgba(0,0,0,0.8)';
+    mapCtx.shadowBlur = 4;
+    mapCtx.fillText(`heading: ${(heading * 180 / Math.PI).toFixed(0)}°`, screen.x + 14, screen.y - 8);
+    mapCtx.shadowBlur = 0;
 }
 
 function drawPath(path) {
@@ -721,9 +757,6 @@ function setMode(mode, silent = false) {
         dpad.classList.remove('visible');
     }
 
-    const modeLabels = { idle: 'Idle', manual: 'Manual', auto: 'Auto' };
-    document.getElementById('robotMode').innerHTML = modeLabels[mode] || mode;
-
     if (silent) return;
 
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -804,7 +837,6 @@ function connectWebSocket() {
                 if (c.lidar_offset_y !== undefined) document.getElementById('lidarOffsetY').value = c.lidar_offset_y;
                 if (c.max_speed !== undefined) {
                     document.getElementById('maxSpeedSlider').value = c.max_speed;
-                    document.getElementById('maxSpeedDisplay').textContent = c.max_speed.toFixed(1);
                 }
                 if (c.robot_width !== undefined) document.getElementById('robotWidth').value = c.robot_width;
                 if (c.stop_distance !== undefined) document.getElementById('stopDistance').value = c.stop_distance;
@@ -1256,7 +1288,6 @@ window.addEventListener('load', function() {
     document.getElementById('scanRate').innerHTML = '0 Hz';
     document.getElementById('leftSpeed').innerHTML = '0.00 m/s';
     document.getElementById('rightSpeed').innerHTML = '0.00 m/s';
-    document.getElementById('robotMode').innerHTML = 'Idle';
     document.getElementById('posX').innerHTML = '0.00 m';
     document.getElementById('posY').innerHTML = '0.00 m';
     document.getElementById('theta').innerHTML = '0.00 °';
@@ -1302,7 +1333,6 @@ window.addEventListener('load', function() {
     stopDistanceInput.addEventListener('input', sendConfig);
 
     speedSlider.addEventListener('input', function() {
-        document.getElementById('maxSpeedDisplay').textContent = parseFloat(this.value).toFixed(1);
         sendConfig();
         updateLinearSpeed();
     });

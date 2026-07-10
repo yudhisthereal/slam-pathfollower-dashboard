@@ -82,7 +82,7 @@
                     <div class="dpad-label">Hold to drive • Tap ⏹ to stop</div>
                 </div>
 
-                                <!-- Mode -->
+                <!-- ─── CONTROL ─── -->
                 <div class="info-section">
                     <h3>🎮 Control</h3>
                     <div class="controls">
@@ -93,6 +93,35 @@
                         </div>
                         <div class="keyboard-hint" id="keyboardHint">
                             ⌨️ Arrow keys • Space=stop • Q=idle
+                        </div>
+
+                        <!-- ── SPEED INFO & CONTROL ── -->
+                        <div class="speed-controls" style="margin-top: 10px; border-top: 1px solid #2a2a3a; padding-top: 8px;">
+                            <table class="info-table">
+                                <tr>
+                                    <td class="info-label">Left Wheel:</td>
+                                    <td class="info-value" id="leftSpeed">0.00 m/s</td>
+                                </tr>
+                                <tr>
+                                    <td class="info-label">Right Wheel:</td>
+                                    <td class="info-value" id="rightSpeed">0.00 m/s</td>
+                                </tr>
+                                <tr>
+                                    <td class="info-label">Linear Vel:</td>
+                                    <td class="info-value" id="linearVel">0.00 m/s</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" style="padding:4px 0;">
+                                        <div class="slider-row">
+                                            <input type="range" id="maxSpeedSlider" min="0.4" max="5.0" step="0.1" value="4.0" />
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="info-label">Linear Speed:</td>
+                                    <td class="info-value" id="linearSpeedDisplay">0.00</td>
+                                </tr>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -111,17 +140,6 @@
                     </table>
                 </div>
 
-                <!-- Robot status -->
-                <div class="info-section">
-                    <h3>🤖 Status</h3>
-                    <table class="info-table">
-                        <tr><td class="info-label">Left:</td><td class="info-value" id="leftSpeed">0.00 m/s</td></tr>
-                        <tr><td class="info-label">Right:</td><td class="info-value" id="rightSpeed">0.00 m/s</td></tr>
-                        <tr><td class="info-label">Mode:</td><td class="info-value" id="robotMode">Idle</td></tr>
-                        <tr><td class="info-label">Battery:</td><td class="info-value" id="battery">100%</td></tr>
-                    </table>
-                </div>
-
                 <!-- Position -->
                 <div class="info-section">
                     <h3>📍 Position</h3>
@@ -129,7 +147,6 @@
                         <tr><td class="info-label">X:</td><td class="info-value" id="posX">0.00 m</td></tr>
                         <tr><td class="info-label">Y:</td><td class="info-value" id="posY">0.00 m</td></tr>
                         <tr><td class="info-label">Theta:</td><td class="info-value" id="theta">0.00 °</td></tr>
-                        <tr><td class="info-label">Linear Vel:</td><td class="info-value" id="linearVel">0.00 m/s</td></tr>
                     </table>
                 </div>
 
@@ -156,21 +173,6 @@
                             <td class="info-label">Lidar Y:</td>
                             <td class="info-value"><input type="number" id="lidarOffsetY" value="0.0" step="0.001" /></td>
                             <td class="info-value" style="font-size:0.7rem;color:#555a75;padding-left:4px;">m</td>
-                        </tr>
-                        <tr>
-                            <td class="info-label">Linear Speed:</td>
-                            <td class="info-value" id="linearSpeedDisplay">0.00</td>
-                            <td class="info-value" style="font-size:0.7rem;color:#555a75;padding-left:4px;">m/s</td>
-                        </tr>
-                        <tr>
-                            <td class="info-label">Wheel Speed:</td>
-                            <td colspan="2" style="padding:4px 0;">
-                                <div class="slider-row">
-                                    <input type="range" id="maxSpeedSlider" min="0.2" max="8.0" step="0.1" value="4.0" />
-                                    <span class="info-value" id="maxSpeedDisplay">4.0</span>
-                                    <span class="info-value">rad/s</span>
-                                </div>
-                            </td>
                         </tr>
                         <tr>
                             <td class="info-label">Robot Width:</td>
