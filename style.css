@@ -131,6 +131,11 @@ canvas {
     cursor: grabbing;
 }
 
+#mobileDpad {
+    touch-action: none;       /* prevents scrolling / zoom / context menu */
+    user-select: none;        /* prevents text selection on long press */
+}
+
 /* ── Map controls groups ── */
 .map-toolbar,
 .toolbar,
