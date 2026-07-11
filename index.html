@@ -110,17 +110,6 @@
                                     <td class="info-label">Linear Vel:</td>
                                     <td class="info-value" id="linearVel">0.00 m/s</td>
                                 </tr>
-                                <tr>
-                                    <td colspan="2" style="padding:4px 0;">
-                                        <div class="slider-row">
-                                            <input type="range" id="maxSpeedSlider" min="0.4" max="5.0" step="0.1" value="4.0" />
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="info-label">Linear Speed:</td>
-                                    <td class="info-value" id="linearSpeedDisplay">0.00</td>
-                                </tr>
                             </table>
                         </div>
                     </div>
@@ -183,6 +172,25 @@
                             <td class="info-label">Stop Dist:</td>
                             <td class="info-value"><input type="number" id="stopDistance" value="0.30" step="0.001" min="0.01" /></td>
                             <td class="info-value" style="font-size:0.7rem;color:#555a75;padding-left:4px;">m</td>
+                        </tr>
+                        <tr>
+                            <td class="info-label">Max Speed:</td>
+                            <td class="info-value" colspan="2">
+                                <input type="range" id="maxSpeedSlider" min="0.4" max="5.0" step="0.1" value="4.0" style="width:100%;" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="info-label">Linear Speed:</td>
+                            <td class="info-value" id="linearSpeedDisplay">0.00</td>
+                            <td class="info-value" style="font-size:0.7rem;color:#555a75;padding-left:4px;">m/s</td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" style="padding:8px 0 4px 0;">
+                                <div class="config-buttons" style="display:flex;gap:8px;flex-wrap:wrap;">
+                                    <button id="applyConfigBtn" style="display:none;background:#4CAF50;color:white;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;">✅ Apply Config</button>
+                                    <button id="resetConfigBtn" style="background:#666;color:white;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;">↺ Reset</button>
+                                </div>
+                            </td>
                         </tr>
                     </table>
                 </div>

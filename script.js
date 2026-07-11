@@ -5,7 +5,6 @@
 let ws = null;
 let activeView = 'radar';
 let currentMode = 'idle';          // 'idle', 'manual', 'auto'
-let isEditing = false;
 
 let waypoints = [];
 let currentTool = 'pan';
@@ -58,28 +57,163 @@ const maxReconnectAttempts = 5;
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  CONFIG
+//  CONFIG - Draft/Apply Architecture
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+let currentConfig = null;  // Last applied/acknowledged config
+let draftConfig = null;    // Currently edited config
+
+const CONFIG_FIELDS = [
+    'wheel_radius',
+    'wheel_base',
+    'lidar_offset_x',
+    'lidar_offset_y',
+    'max_speed',
+    'robot_width',
+    'stop_distance'
+];
+
+function cloneConfig(config) {
+    return { ...config };
+}
+
+function configsEqual(a, b) {
+    if (!a || !b) return false;
+    for (const field of CONFIG_FIELDS) {
+        if (a[field] !== b[field]) return false;
+    }
+    return true;
+}
+
 function updateLinearSpeed() {
-    const radius = parseFloat(document.getElementById('wheelRadius').value) || 0.0975;
-    const speedRad = parseFloat(document.getElementById('maxSpeedSlider').value) || 0;
-    const linear = radius * speedRad;
-    document.getElementById('linearSpeedDisplay').textContent = linear.toFixed(2) + " m/s";
+    const radius = draftConfig?.wheel_radius ?? 0.0975;
+    const maxLinear = draftConfig?.max_speed * radius ?? 0;
+    document.getElementById('linearSpeedDisplay').textContent = maxLinear.toFixed(2);
+}
+
+function populateConfigUI(config) {
+    console.log(config)
+    if (!config) return;
+    const wheelRadius = config.wheel_radius;
+    document.getElementById('wheelRadius').value = wheelRadius;
+    document.getElementById('wheelBase').value = config.wheel_base;
+    document.getElementById('lidarOffsetX').value = config.lidar_offset_x;
+    document.getElementById('lidarOffsetY').value = config.lidar_offset_y;
+    document.getElementById('robotWidth').value = config.robot_width;
+    document.getElementById('stopDistance').value = config.stop_distance;
+    // Set slider to linear speed (m/s)
+    const linearSpeed = config.max_speed * wheelRadius;
+    console.log("DANCON")
+    document.getElementById('maxSpeedSlider').value = linearSpeed;
+    updateLinearSpeed();
+}
+
+// ─── Config Input Setup ───
+function setupConfigInputs() {
+    const configInputs = [
+        'wheelRadius',
+        'wheelBase',
+        'lidarOffsetX',
+        'lidarOffsetY',
+        'robotWidth',
+        'stopDistance',
+        'maxSpeedSlider'
+    ];
+    
+    configInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', onConfigInputChange);
+            el.addEventListener('change', onConfigInputChange);
+        }
+    });
+    
+    // Apply button
+    const applyBtn = document.getElementById('applyConfigBtn');
+    if (applyBtn) {
+        applyBtn.addEventListener('click', applyConfig);
+    }
+    
+    // Reset button
+    const resetBtn = document.getElementById('resetConfigBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetConfig);
+    }
+}
+
+function readConfigFromUI() {
+    const wheelRadius = parseFloat(document.getElementById('wheelRadius').value) || 0.0975;
+    const linearSpeed = parseFloat(document.getElementById('maxSpeedSlider').value) || 0;
+    return {
+        wheel_radius: wheelRadius,
+        wheel_base: parseFloat(document.getElementById('wheelBase').value) || 0.33,
+        lidar_offset_x: parseFloat(document.getElementById('lidarOffsetX').value) || 0.0,
+        lidar_offset_y: parseFloat(document.getElementById('lidarOffsetY').value) || 0.0,
+        max_speed: linearSpeed / wheelRadius,   // convert linear → rad/s
+        robot_width: parseFloat(document.getElementById('robotWidth').value) || 0.41,
+        stop_distance: parseFloat(document.getElementById('stopDistance').value) || 0.3
+    };
+}
+
+function validateConfig(config) {
+    for (const field of CONFIG_FIELDS) {
+        const val = config[field];
+        if (val === undefined || val === null) return false;
+        if (typeof val !== 'number' || isNaN(val) || !isFinite(val)) return false;
+    }
+    if (config.wheel_radius <= 0) return false;
+    if (config.wheel_base <= 0) return false;
+    if (config.robot_width <= 0) return false;
+    if (config.stop_distance < 0) return false;
+    if (config.max_speed < 0) return false;
+    return true;
+}
+
+function updateApplyButton() {
+    const btn = document.getElementById('applyConfigBtn');
+    if (currentConfig && draftConfig && !configsEqual(currentConfig, draftConfig)) {
+        btn.style.display = 'inline-block';
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+function onConfigInputChange() {
+    const newDraft = readConfigFromUI();
+    if (!draftConfig) {
+        // First change before config is loaded – store but don't show Apply yet
+        draftConfig = newDraft;
+        updateLinearSpeed();
+        return;
+    }
+    draftConfig = newDraft;
+    updateLinearSpeed();
+    updateApplyButton();
+}
+
+function applyConfig() {
+    if (!draftConfig) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('Not connected to bridge.');
+        return;
+    }
+    if (!validateConfig(draftConfig)) {
+        alert('Invalid configuration values. Please check all fields.');
+        return;
+    }
+    ws.send(JSON.stringify({ type: 'set_config', config: draftConfig }));
+}
+
+function resetConfig() {
+    if (!currentConfig) return;
+    draftConfig = cloneConfig(currentConfig);
+    populateConfigUI(draftConfig);
+    updateApplyButton();
 }
 
 function sendConfig() {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    const config = {
-        wheel_radius: parseFloat(document.getElementById('wheelRadius').value),
-        wheel_base: parseFloat(document.getElementById('wheelBase').value),
-        lidar_offset_x: parseFloat(document.getElementById('lidarOffsetX').value),
-        lidar_offset_y: parseFloat(document.getElementById('lidarOffsetY').value),
-        max_speed: parseFloat(document.getElementById('maxSpeedSlider').value),
-        robot_width: parseFloat(document.getElementById('robotWidth').value),
-        stop_distance: parseFloat(document.getElementById('stopDistance').value)
-    };
-    ws.send(JSON.stringify({ type: 'set_config', config }));
+    // DEPRECATED - kept for compatibility but no longer used
+    console.warn('sendConfig() is deprecated - use applyConfig() instead');
 }
 
 function requestConfig() {
@@ -808,39 +942,41 @@ function connectWebSocket() {
 
             if (data.type === 'registered') {
                 document.getElementById('connectionStatus').className = 'status connected';
-                document.getElementById('connectionStatus').innerHTML = `Registered (${data.bridge_status || 'online'})`;
+                document.getElementById('connectionStatus').innerHTML = `${data.bridge_status || 'online'}`;
                 ws.send(JSON.stringify({ type: 'get_config' }));
                 return;
             }
             if (data.type === 'bridge_offline') {
                 document.getElementById('connectionStatus').className = 'status disconnected';
-                document.getElementById('connectionStatus').innerHTML = 'Bridge Offline';
+                document.getElementById('connectionStatus').innerHTML = 'offline';
                 return;
             }
             if (data.type === 'bridge_online') {
                 document.getElementById('connectionStatus').className = 'status connected';
-                document.getElementById('connectionStatus').innerHTML = 'Bridge Online';
+                document.getElementById('connectionStatus').innerHTML = 'online';
+                requestConfig(); 
                 return;
             }
             if (data.type === 'error') {
                 document.getElementById('connectionStatus').className = 'status error';
-                document.getElementById('connectionStatus').innerHTML = 'Error';
+                document.getElementById('connectionStatus').innerHTML = 'error';
                 return;
             }
 
             if (data.type === 'config' || data.type === 'config_updated') {
-                if (isEditing) return;
                 const c = data.config;
-                if (c.wheel_radius !== undefined) document.getElementById('wheelRadius').value = c.wheel_radius;
-                if (c.wheel_base !== undefined) document.getElementById('wheelBase').value = c.wheel_base;
-                if (c.lidar_offset_x !== undefined) document.getElementById('lidarOffsetX').value = c.lidar_offset_x;
-                if (c.lidar_offset_y !== undefined) document.getElementById('lidarOffsetY').value = c.lidar_offset_y;
-                if (c.max_speed !== undefined) {
-                    document.getElementById('maxSpeedSlider').value = c.max_speed;
-                }
-                if (c.robot_width !== undefined) document.getElementById('robotWidth').value = c.robot_width;
-                if (c.stop_distance !== undefined) document.getElementById('stopDistance').value = c.stop_distance;
-                updateLinearSpeed();
+                // Validate received config
+                if (!c || typeof c !== 'object') return;
+                
+                // Update currentConfig and draftConfig
+                currentConfig = cloneConfig(c);
+                draftConfig = cloneConfig(c);
+                console.log("cloning config")
+                console.log(draftConfig)
+                
+                // Populate UI
+                populateConfigUI(draftConfig);
+                updateApplyButton();
                 return;
             }
 
@@ -1315,43 +1451,11 @@ window.addEventListener('load', function() {
         connectWebSocket();
     }, 1000);
 
-    // Config inputs (unchanged)
-    const wheelRadiusInput = document.getElementById('wheelRadius');
-    const wheelBaseInput = document.getElementById('wheelBase');
-    const lidarOffsetXInput = document.getElementById('lidarOffsetX');
-    const lidarOffsetYInput = document.getElementById('lidarOffsetY');
-    const robotWidthInput = document.getElementById('robotWidth');
-    const stopDistanceInput = document.getElementById('stopDistance');
-    const speedSlider = document.getElementById('maxSpeedSlider');
+    setupConfigInputs();
 
-    function startEditing() { isEditing = true; }
-    function stopEditing() { isEditing = false; }
-
-    const inputs = [wheelRadiusInput, wheelBaseInput, lidarOffsetXInput, lidarOffsetYInput, robotWidthInput, stopDistanceInput];
-    inputs.forEach(input => {
-        input.addEventListener('focus', startEditing);
-        input.addEventListener('blur', stopEditing);
-    });
-
-    speedSlider.addEventListener('pointerdown', startEditing);
-    speedSlider.addEventListener('pointerup', stopEditing);
-    speedSlider.addEventListener('focus', startEditing);
-    speedSlider.addEventListener('blur', stopEditing);
-    document.addEventListener('pointerup', stopEditing);
-
-    wheelRadiusInput.addEventListener('input', () => { updateLinearSpeed(); sendConfig(); });
-    wheelBaseInput.addEventListener('input', sendConfig);
-    lidarOffsetXInput.addEventListener('input', sendConfig);
-    lidarOffsetYInput.addEventListener('input', sendConfig);
-    robotWidthInput.addEventListener('input', sendConfig);
-    stopDistanceInput.addEventListener('input', sendConfig);
-
-    speedSlider.addEventListener('input', function() {
-        sendConfig();
-        updateLinearSpeed();
-    });
-
-    updateLinearSpeed();
+    currentConfig = null;
+    draftConfig = null;
+    document.getElementById('applyConfigBtn').style.display = 'none';
 
     let resizeTimer;
     window.addEventListener('resize', function() {
