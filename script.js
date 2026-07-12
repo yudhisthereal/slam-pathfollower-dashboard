@@ -101,10 +101,7 @@ function populateConfigUI(config) {
     document.getElementById('lidarOffsetY').value = config.lidar_offset_y;
     document.getElementById('robotWidth').value = config.robot_width;
     document.getElementById('stopDistance').value = config.stop_distance;
-    // Set slider to linear speed (m/s)
-    const linearSpeed = config.max_speed * wheelRadius;
-    console.log("DANCON")
-    document.getElementById('maxSpeedSlider').value = linearSpeed;
+    document.getElementById('maxSpeedSlider').value = config.max_speed;
     updateLinearSpeed();
 }
 
@@ -142,14 +139,12 @@ function setupConfigInputs() {
 }
 
 function readConfigFromUI() {
-    const wheelRadius = parseFloat(document.getElementById('wheelRadius').value) || 0.0975;
-    const linearSpeed = parseFloat(document.getElementById('maxSpeedSlider').value) || 0;
     return {
-        wheel_radius: wheelRadius,
+        wheel_radius: parseFloat(document.getElementById('wheelRadius').value) || 0.0975,
         wheel_base: parseFloat(document.getElementById('wheelBase').value) || 0.33,
         lidar_offset_x: parseFloat(document.getElementById('lidarOffsetX').value) || 0.0,
         lidar_offset_y: parseFloat(document.getElementById('lidarOffsetY').value) || 0.0,
-        max_speed: linearSpeed / wheelRadius,   // convert linear → rad/s
+        max_speed: parseFloat(document.getElementById('maxSpeedSlider').value) || 0.4,
         robot_width: parseFloat(document.getElementById('robotWidth').value) || 0.41,
         stop_distance: parseFloat(document.getElementById('stopDistance').value) || 0.3
     };
